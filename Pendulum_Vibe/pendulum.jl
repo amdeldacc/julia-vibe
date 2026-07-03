@@ -200,77 +200,79 @@ function phase_portrait(sol; title::String="Phase Portrait")
     return p
 end
 
-# Main execution
-println("Solving pendulum equations of motion for L = $L m")
-println("Using OrdinaryDiffEq.jl package...")
-
-# Initial conditions: start from rest at 45 degrees (π/4 radians)
-θ₀ = π / 4  # 45 degrees in radians
-ω₀ = 0.0    # initial angular velocity
-
-# Time span: simulate for 10 seconds
-tspan = (0.0, 10.0)
-
-println("Initial angle: $(rad2deg(θ₀)) degrees")
-println("Initial angular velocity: $ω₀ rad/s")
-println("Simulating for $(tspan[2]) seconds...")
-
-# Solve the pendulum equations
-@time sol = solve_pendulum(θ₀, ω₀, tspan)
-
-println("Solution computed successfully!")
-println("Number of time points: $(length(sol.t))")
-
-# Plot the results
-println("\nDisplaying plots...")
-plot_pendulum_solution(sol, show_energy=true)
-
-# Save the plots
-println("\nSaving plots to file...")
-p_energy = plot_pendulum_solution(sol, show_energy=true)
-savefig(p_energy, "Pendulum_Vibe/pendulum_motion.png")
-
-p_phase = phase_portrait(sol, title="Pendulum Phase Portrait (L = $L m)")
-savefig(p_phase, "Pendulum_Vibe/pendulum_phase_portrait.png")
-
-println("Plots saved to Pendulum_Vibe/ directory")
-
-# Display phase portrait
-println("\nDisplaying phase portrait...")
-phase_portrait(sol, title="Pendulum Phase Portrait (L = $L m)")
-
-# Print some statistics about the solution
-println("\n=== Solution Statistics ===")
-final_angle = sol.u[end][1]
-final_velocity = sol.u[end][2]
-println("Final angle: $(rad2deg(final_angle)) degrees")
-println("Final angular velocity: $final_velocity rad/s")
-
-# Calculate period for small oscillations (approximate)
-# For small angles: T ≈ 2π * sqrt(L/g)
-expected_period = 2 * π * sqrt(L / g)
-println("Expected period for small oscillations (T = 2π√(L/g)): $expected_period s")
-
-# Note: For larger initial angles like 45°, the actual period is longer than the small-angle approximation
-# due to nonlinear effects in the pendulum motion.
-
-# Calculate actual period from the solution by finding time between successive maxima
-θ_values = [u[1] for u in sol.u]
-t_values = sol.t
-
-# Find all local maxima (peaks) regardless of sign
-peaks = Vector{Float64}()
-for i in 2:length(θ_values)-1
-    if θ_values[i] > θ_values[i-1] && θ_values[i] > θ_values[i+1]
-        push!(peaks, t_values[i])
+# Main execution - only run when this file is executed directly, not when included
+if abspath(PROGRAM_FILE) == @__FILE__
+    println("Solving pendulum equations of motion for L = $L m")
+    println("Using OrdinaryDiffEq.jl package...")
+    
+    # Initial conditions: start from rest at 45 degrees (π/4 radians)
+    θ₀ = π / 4  # 45 degrees in radians
+    ω₀ = 0.0    # initial angular velocity
+    
+    # Time span: simulate for 10 seconds
+    tspan = (0.0, 10.0)
+    
+    println("Initial angle: $(rad2deg(θ₀)) degrees")
+    println("Initial angular velocity: $ω₀ rad/s")
+    println("Simulating for $(tspan[2]) seconds...")
+    
+    # Solve the pendulum equations
+    @time sol = solve_pendulum(θ₀, ω₀, tspan)
+    
+    println("Solution computed successfully!")
+    println("Number of time points: $(length(sol.t))")
+    
+    # Plot the results
+    println("\nDisplaying plots...")
+    plot_pendulum_solution(sol, show_energy=true)
+    
+    # Save the plots
+    println("\nSaving plots to file...")
+    p_energy = plot_pendulum_solution(sol, show_energy=true)
+    savefig(p_energy, "pendulum_motion.png")
+    
+    p_phase = phase_portrait(sol, title="Pendulum Phase Portrait (L = $L m)")
+    savefig(p_phase, "pendulum_phase_portrait.png")
+    
+    println("Plots saved to Pendulum_Vibe/ directory")
+    
+    # Display phase portrait
+    println("\nDisplaying phase portrait...")
+    phase_portrait(sol, title="Pendulum Phase Portrait (L = $L m)")
+    
+    # Print some statistics about the solution
+    println("\n=== Solution Statistics ===")
+    final_angle = sol.u[end][1]
+    final_velocity = sol.u[end][2]
+    println("Final angle: $(rad2deg(final_angle)) degrees")
+    println("Final angular velocity: $final_velocity rad/s")
+    
+    # Calculate period for small oscillations (approximate)
+    # For small angles: T ≈ 2π * sqrt(L/g)
+    expected_period = 2 * π * sqrt(L / g)
+    println("Expected period for small oscillations (T = 2π√(L/g)): $expected_period s")
+    
+    # Note: For larger initial angles like 45°, the actual period is longer than the small-angle approximation
+    # due to nonlinear effects in the pendulum motion.
+    
+    # Calculate actual period from the solution by finding time between successive maxima
+    θ_values = [u[1] for u in sol.u]
+    t_values = sol.t
+    
+    # Find all local maxima (peaks) regardless of sign
+    peaks = Vector{Float64}()
+    for i in 2:length(θ_values)-1
+        if θ_values[i] > θ_values[i-1] && θ_values[i] > θ_values[i+1]
+            push!(peaks, t_values[i])
+        end
     end
+    
+    # Calculate period as average time between consecutive peaks
+    if length(peaks) >= 2
+        periods = diff(peaks)
+        actual_period = mean(periods)
+        println("Actual period from simulation (peak-to-peak): $actual_period s")
+    end
+    
+    println("\nPendulum simulation complete!")
 end
-
-# Calculate period as average time between consecutive peaks
-if length(peaks) >= 2
-    periods = diff(peaks)
-    actual_period = mean(periods)
-    println("Actual period from simulation (peak-to-peak): $actual_period s")
-end
-
-println("\nPendulum simulation complete!")
