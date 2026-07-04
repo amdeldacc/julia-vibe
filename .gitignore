@@ -1,0 +1,5 @@
+# Ignore Claude code directory
+.claude/
+
+# Ignore Node.js modules
+node_modules/
