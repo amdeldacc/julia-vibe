@@ -21,10 +21,10 @@ include("pendulum.jl")
     @testset "ODE Function Tests" begin
         
         @testset "pendulum_ode! function" begin
+            p = [g, L]
             # Test at θ = 0, ω = 0 (equilibrium position at rest)
             du = zeros(2)
             u = [0.0, 0.0]  # [θ, ω]
-            p = nothing
             t = 0.0
             
             pendulum_ode!(du, u, p, t)
@@ -54,7 +54,7 @@ include("pendulum.jl")
             # Test that the units work out dimensionally
             du = zeros(2)
             u = [1.0, 2.0]  # [rad, rad/s]
-            p = nothing
+            p = [g, L]
             t = 0.0
             
             pendulum_ode!(du, u, p, t)
@@ -77,7 +77,6 @@ include("pendulum.jl")
             sol = solve_pendulum(θ₀, ω₀, tspan, saveat=0.01)
             
             # Test solution structure
-            @test typeof(sol) <: Any  # Solution object from OrdinaryDiffEq
             @test length(sol.t) > 0
             @test length(sol.u) == length(sol.t)
             
@@ -124,15 +123,7 @@ include("pendulum.jl")
             sol = solve_pendulum(θ₀, ω₀, tspan, saveat=0.001)
             
             # Calculate period from solution
-            θ_values = [u[1] for u in sol.u]
-            t_values = sol.t
-            
-            peaks = Vector{Float64}()
-            for i in 2:length(θ_values)-1
-                if θ_values[i] > θ_values[i-1] && θ_values[i] > θ_values[i+1]
-                    push!(peaks, t_values[i])
-                end
-            end
+            peaks = find_peaks(sol.t, [u[1] for u in sol.u])
             
             @test length(peaks) >= 2  # Should have at least 2 peaks
             
@@ -180,7 +171,7 @@ include("pendulum.jl")
             E_expected = KE_expected + PE_expected
             
             # Create a solution with just this state
-            prob_rest = ODEProblem(pendulum_ode!, u_rest, (0.0, 0.1))
+            prob_rest = ODEProblem(pendulum_ode!, u_rest, (0.0, 0.1), [g, L])
             sol_rest = solve(prob_rest, Tsit5(), saveat=0.1)
             energy_rest = calculate_energy(sol_rest)
             
@@ -198,7 +189,7 @@ include("pendulum.jl")
             PE_expected = m * g * L * (1 - cos(θ_max))  # = 2*m*g*L
             E_expected = KE_expected + PE_expected
             
-            prob_max = ODEProblem(pendulum_ode!, u_max, (0.0, 0.1))
+            prob_max = ODEProblem(pendulum_ode!, u_max, (0.0, 0.1), [g, L])
             sol_max = solve(prob_max, Tsit5(), saveat=0.1)
             energy_max = calculate_energy(sol_max)
             
@@ -244,34 +235,13 @@ include("pendulum.jl")
         end
         
         @testset "Different pendulum lengths" begin
-            # Test with different lengths by modifying the global constant
-            # Note: We'll create a local version for testing
-            local L_test = 2.0  # 2m pendulum
-            
-            function pendulum_ode_test!(du, u, p, t)
-                θ = u[1]
-                ω = u[2]
-                du[1] = ω
-                du[2] = - (g / L_test) * sin(θ)
-            end
-            
-            u₀ = [deg2rad(5.0), 0.0]
-            tspan = (0.0, 10.0)
-            prob = ODEProblem(pendulum_ode_test!, u₀, tspan)
-            sol = solve(prob, Tsit5(), saveat=0.01)
+            L_test = 2.0  # 2m pendulum
+            sol = solve_pendulum(deg2rad(5.0), 0.0, (0.0, 10.0), saveat=0.01, L=L_test)
             
             # Theoretical period for 2m pendulum
             expected_period = 2 * π * sqrt(L_test / g)
             
-            θ_values = [u[1] for u in sol.u]
-            t_values = sol.t
-            
-            peaks = Vector{Float64}()
-            for i in 2:length(θ_values)-1
-                if θ_values[i] > θ_values[i-1] && θ_values[i] > θ_values[i+1]
-                    push!(peaks, t_values[i])
-                end
-            end
+            peaks = find_peaks(sol.t, [u[1] for u in sol.u])
             
             if length(peaks) >= 2
                 periods = diff(peaks)

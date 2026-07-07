@@ -35,7 +35,7 @@ Define the system of ODEs for the simple pendulum.
 # Arguments
 - `du`: derivative vector (output)
 - `u`: state vector [θ, ω] where θ is angle and ω is angular velocity
-- `p`: parameters (unused)
+- `p`: parameters tuple (g, L) or nothing (falls back to module constants)
 - `t`: time
 
 The equations are:
@@ -43,15 +43,15 @@ The equations are:
 - dω/dt = - (g/L) * sin(θ)
 """
 function pendulum_ode!(du, u, p, t)
-    θ = u[1]  # angular position
-    ω = u[2]  # angular velocity
-    
+    θ = u[1]
+    ω = u[2]
+    g_val, L_val = p === nothing ? (g, L) : p
     du[1] = ω
-    du[2] = - (g / L) * sin(θ)
+    du[2] = - (g_val / L_val) * sin(θ)
 end
 
 """
-    solve_pendulum(θ₀, ω₀, tspan; saveat=0.01)
+    solve_pendulum(θ₀, ω₀, tspan; saveat=0.01, L=1.0, g=9.81)
 
 Solve the pendulum equations of motion with given initial conditions.
 
@@ -60,20 +60,16 @@ Solve the pendulum equations of motion with given initial conditions.
 - `ω₀`: initial angular velocity (rad/s)
 - `tspan`: time span tuple (t_start, t_end)
 - `saveat`: time step for saving solution (default: 0.01)
+- `L`: pendulum length in meters (default: 1.0)
+- `g`: gravitational acceleration in m/s² (default: 9.81)
 
 # Returns
 - solution: ODE solution object containing time, angle, and angular velocity
 """
-function solve_pendulum(θ₀::Float64, ω₀::Float64, tspan::Tuple{Float64,Float64}; saveat::Float64=0.01)
-    # Initial state: [θ, ω]
+function solve_pendulum(θ₀::Float64, ω₀::Float64, tspan::Tuple{Float64,Float64}; saveat::Float64=0.01, L::Float64=1.0, g::Float64=9.81)
     u₀ = [θ₀, ω₀]
-    
-    # Create ODE problem
-    prob = ODEProblem(pendulum_ode!, u₀, tspan)
-    
-    # Solve using Tsitouras 5th order Runge-Kutta method
+    prob = ODEProblem(pendulum_ode!, u₀, tspan, [g, L])
     sol = solve(prob, Tsit5(), saveat=saveat)
-    
     return sol
 end
 
@@ -176,6 +172,21 @@ function calculate_energy(sol)
 end
 
 """
+    find_peaks(t, values)
+
+Find time points corresponding to local maxima in `values`.
+"""
+function find_peaks(t, values)
+    peaks = Vector{Float64}()
+    for i in 2:length(values)-1
+        if values[i] > values[i-1] && values[i] > values[i+1]
+            push!(peaks, t[i])
+        end
+    end
+    return peaks
+end
+
+"""
     phase_portrait(sol; title="Phase Portrait")
 
 Plot the phase portrait (ω vs θ) of the pendulum motion.
@@ -222,12 +233,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
     println("Solution computed successfully!")
     println("Number of time points: $(length(sol.t))")
     
-    # Plot the results
-    println("\nDisplaying plots...")
-    plot_pendulum_solution(sol, show_energy=true)
-    
-    # Save the plots
-    println("\nSaving plots to file...")
+    # Plot and save the results
+    println("\nDisplaying and saving plots...")
     p_energy = plot_pendulum_solution(sol, show_energy=true)
     savefig(p_energy, "pendulum_motion.png")
     
@@ -260,12 +267,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     t_values = sol.t
     
     # Find all local maxima (peaks) regardless of sign
-    peaks = Vector{Float64}()
-    for i in 2:length(θ_values)-1
-        if θ_values[i] > θ_values[i-1] && θ_values[i] > θ_values[i+1]
-            push!(peaks, t_values[i])
-        end
-    end
+    peaks = find_peaks(t_values, θ_values)
     
     # Calculate period as average time between consecutive peaks
     if length(peaks) >= 2

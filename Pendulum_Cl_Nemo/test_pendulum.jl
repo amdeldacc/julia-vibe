@@ -35,12 +35,12 @@ include("pendulum_solver.jl")
     @test all(abs.(sol_eq[1, :]) .< 1e-6)  # Angle should remain near zero
     @test all(abs.(sol_eq[2, :]) .< 1e-6)  # Angular velocity should remain near zero
 
-    # Test 6: Check that the plotting function doesn't throw (we'll just call it and check it returns nothing)
-    # We'll use a temporary file for the plot
-    @test_nowarn plot_pendulum(sol; filename_html="test_plot.html", filename_png="test_plot.png")
-    # Clean up the test files
-    rm("test_plot.html"; force=true)
-    rm("test_plot.png"; force=true)
+    # Test 6: Check that the plotting function doesn't throw in a temp directory
+    mktempdir() do dir
+        html_path = joinpath(dir, "test_plot.html")
+        png_path = joinpath(dir, "test_plot.png")
+        @test_nowarn plot_pendulum(sol; filename_html=html_path, filename_png=png_path)
+    end
 end
 
 println("All tests passed!")

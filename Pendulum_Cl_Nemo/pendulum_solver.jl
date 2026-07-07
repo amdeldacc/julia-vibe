@@ -3,6 +3,20 @@ using Plots
 plotlyjs()  # Use PlotlyJS backend for interactive plots
 
 """
+    pendulum!(du, u, p, t)
+
+Define the system of ODEs for a simple pendulum.
+
+Parameters are passed via `p` as (g, L).
+"""
+function pendulum!(du, u, p, t)
+    g, L = p
+    θ, ω = u
+    du[1] = ω
+    du[2] = -g/L * sin(θ)
+end
+
+"""
     solve_pendulum(; L=1.0, g=9.81, θ0=π/4, ω0=0.0, tspan=(0.0, 10.0))
 
 Solve the ODE for a simple pendulum.
@@ -17,24 +31,12 @@ Solve the ODE for a simple pendulum.
 # Returns
 - `sol`: the solution object from `OrdinaryDiffEq.solve`
 """
-function solve_pendulum(; L=1.0, g=9.81, θ0=π/4, ω0=0.0, tspan=(0.0, 10.0))
-    # Define the ODE for a simple pendulum: d²θ/dt² = -g/L * sin(θ)
-    # Convert to system of first-order ODEs:
-    # dθ/dt = ω
-    # dω/dt = -g/L * sin(θ)
-    function pendulum!(du, u, p, t)
-        θ, ω = u
-        du[1] = ω                    # dθ/dt
-        du[2] = -g/L * sin(θ)        # dω/dt
-    end
-
+function solve_pendulum(; L::Float64=1.0, g::Float64=9.81, θ0::Float64=π/4, ω0::Float64=0.0, tspan::Tuple{Float64,Float64}=(0.0, 10.0))
     # Initial conditions
     u0 = [θ0, ω0]
 
-    # Create the ODE problem
-    prob = ODEProblem(pendulum!, u0, tspan)
-
-    # Solve the ODE
+    # Create and solve the ODE problem with parameters
+    prob = ODEProblem(pendulum!, u0, tspan, [g, L])
     sol = solve(prob, Tsit5(), reltol=1e-6, abstol=1e-8)
     return sol
 end
@@ -49,7 +51,7 @@ Plot the pendulum solution and save to files.
 - `filename_html::String="pendulum_plot.html"`: output HTML file name
 - `filename_png::String="pendulum_plot.png"`: output PNG file name
 """
-function plot_pendulum(sol; filename_html="pendulum_plot.html", filename_png="pendulum_plot.png")
+function plot_pendulum(sol; filename_html::String="pendulum_plot.html", filename_png::String="pendulum_plot.png")
     # Extract solution components
     θ_sol = sol[1, :]  # angle over time
     ω_sol = sol[2, :]  # angular velocity over time
